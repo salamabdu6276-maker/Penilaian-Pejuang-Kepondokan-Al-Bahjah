@@ -1,0 +1,16 @@
+import re
+with open('src/components/AdminSettings.tsx', 'r') as f:
+    content = f.read()
+
+content = content.replace('import React, { useState } from "react";\\nimport { AnimatedDeleteButton } from "./AnimatedDeleteButton";', 'import React, { useState } from "react";\nimport { AnimatedDeleteButton } from "./AnimatedDeleteButton";')
+
+with open('src/components/AdminSettings.tsx', 'w') as f:
+    f.write(content)
+
+with open('src/components/DocumentUploadView.tsx', 'r') as f:
+    content = f.read()
+
+content = content.replace('import React, { useState, useEffect, useRef } from "react";\\nimport { motion, AnimatePresence } from "motion/react";', 'import React, { useState, useEffect, useRef } from "react";\nimport { motion, AnimatePresence } from "motion/react";')
+
+with open('src/components/DocumentUploadView.tsx', 'w') as f:
+    f.write(content)

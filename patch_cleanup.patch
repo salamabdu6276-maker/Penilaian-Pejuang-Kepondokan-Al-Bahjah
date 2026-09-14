@@ -1,0 +1,14 @@
+--- src/components/Dashboard.tsx
++++ src/components/Dashboard.tsx
+@@ -623,12 +623,6 @@
+             </div>
+           </div>
+         </div>
+-          </div>
+-          <p className="text-[11px] text-slate-400 italic text-center">
+-            * Angka kecil warna emas melambangkan tanggal Hijriyah.
+-          </p>
+-        </div>
+       </div>
+ 
+       {/* COMPARISON CHART */}

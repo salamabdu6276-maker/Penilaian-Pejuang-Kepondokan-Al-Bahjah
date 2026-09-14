@@ -1,0 +1,34 @@
+--- src/components/Dashboard.tsx
++++ src/components/Dashboard.tsx
+@@ -725,10 +725,13 @@
+             ) : (
+               <ul className="space-y-2">
+                 {submittedList.map(p => (
+-                  <li key={p.id} className="flex flex-col bg-white p-2.5 rounded-lg border border-emerald-100/50 shadow-sm">
+-                    <span className="text-sm font-bold text-slate-800">{p.nama}</span>
++                  <li key={p.id} className="bg-white p-2.5 rounded-lg border border-emerald-100/50 shadow-sm flex flex-col items-start">
++                    <button 
++                       onClick={() => setHistoryModalPejuang(p)}
++                       className="text-sm font-bold text-slate-800 hover:text-indigo-600 transition-colors text-left"
++                    >{p.nama}</button>
+                     <span className="text-xs text-slate-500">{p.subDivisi}</span>
+                   </li>
+                 ))}
+               </ul>
+             )}
+@@ -745,10 +748,13 @@
+             ) : (
+               <ul className="space-y-2">
+                 {unsubmittedList.map(p => (
+-                  <li key={p.id} className="flex flex-col bg-white p-2.5 rounded-lg border border-rose-100/50 shadow-sm">
+-                    <span className="text-sm font-bold text-slate-800">{p.nama}</span>
++                  <li key={p.id} className="bg-white p-2.5 rounded-lg border border-rose-100/50 shadow-sm flex flex-col items-start">
++                    <button 
++                       onClick={() => setHistoryModalPejuang(p)}
++                       className="text-sm font-bold text-slate-800 hover:text-indigo-600 transition-colors text-left"
++                    >{p.nama}</button>
+                     <span className="text-xs text-slate-500">{p.subDivisi}</span>
+                   </li>
+                 ))}
+               </ul>
+             )}

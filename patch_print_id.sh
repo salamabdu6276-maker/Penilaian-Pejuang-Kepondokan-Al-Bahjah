@@ -1,0 +1,2 @@
+sed -i 's/<div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-6">/<div id="laporan-rekap-container" className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-6">/1' src/components/ReportsView.tsx
+sed -i 's/<div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-6">/<div id="laporan-divisi-container" className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-6">/1' src/components/ReportsView.tsx

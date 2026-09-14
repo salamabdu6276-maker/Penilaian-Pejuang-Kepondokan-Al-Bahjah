@@ -1,0 +1,25 @@
+@custom-variant dark (&:where(.dark, .dark *));
+@import "tailwindcss";
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #official-print-paper, #official-print-paper * {
+    visibility: visible;
+  }
+  #official-print-paper {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+    border: none;
+  }
+  @page {
+    size: auto;
+    margin: 10mm;
+  }
+}

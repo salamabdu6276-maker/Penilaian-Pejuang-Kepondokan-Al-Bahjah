@@ -1,0 +1,61 @@
+--- src/components/Dashboard.tsx
++++ src/components/Dashboard.tsx
+@@ -216,29 +216,40 @@
+   }, [rankings]);
+ 
+   // Calendar Date Pejuang details calculation
+-  const getTopPejuangForDate = (dayNum: number) => {
+-    let topScore = -1;
+-    let topName = "Belum Ada Data";
+-    let topFoto = "";
+-    let topCategory = "A";
++  const getTop5PejuangForDate = (dayNum: number) => {
+     let totalChecks = 0;
++    
++    const dateRankings: { pejuangId: string; pejuangNama: string; fotoUrl: string; percentage: number; kategori: string }[] = [];
+ 
+     monthSubmissions.forEach(sub => {
+       sub.tasks.forEach(t => {
+         if (t.realisasiChecks && t.realisasiChecks[dayNum]) {
+           totalChecks++;
+         }
+       });
+       if (sub.dates.includes(dayNum)) {
+-        if (sub.percentage > topScore) {
+-          topScore = sub.percentage;
+-          topName = sub.pejuangNama;
+-          topCategory = sub.kategoriTertinggi || "A";
+-          const p = pejuangList.find(x => x.id === sub.pejuangId);
+-          topFoto = p?.fotoUrl || "";
+-        }
++        const p = pejuangList.find(x => x.id === sub.pejuangId);
++        const existing = dateRankings.find(x => x.pejuangId === sub.pejuangId);
++        if (existing) {
++           // If multiple submissions exist for same user? Should not happen often, but let's take max
++           if (sub.percentage > existing.percentage) {
++              existing.percentage = sub.percentage;
++              existing.kategori = sub.kategoriTertinggi || existing.kategori;
++           }
++        } else {
++          dateRankings.push({
++            pejuangId: sub.pejuangId,
++            pejuangNama: sub.pejuangNama,
++            fotoUrl: p?.fotoUrl || "",
++            percentage: sub.percentage,
++            kategori: sub.kategoriTertinggi || "A"
++          });
++        }
+       }
+     });
++    
++    const top5 = dateRankings.sort((a, b) => b.percentage - a.percentage).slice(0, 5);
++
+     return {
+-      topName: topScore >= 0 ? topName : "Belum Ada Data",
+-      topScore: topScore >= 0 ? topScore : 0,
+-      topCategory,
+-      topFoto,
++      top5,
+       totalChecks
+     };
+   };

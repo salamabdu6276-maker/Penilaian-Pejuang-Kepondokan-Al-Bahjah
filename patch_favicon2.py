@@ -3,17 +3,8 @@ import re
 with open('src/App.tsx', 'r') as f:
     content = f.read()
 
-import_target = """import { 
-  fetchPejuangList,"""
-
-import_new = """import { useAppLogo } from "./hooks/useAppLogo";
-import { 
-  fetchPejuangList,"""
-
-content = content.replace(import_target, import_new)
-
 hook_target = """export default function App() {
-  const [role, setRole] = useState<Role>(null);"""
+  const [darkMode, setDarkMode] = useState<boolean>(() => {"""
 
 hook_new = """export default function App() {
   const appLogo = useAppLogo();
@@ -32,7 +23,7 @@ hook_new = """export default function App() {
     }
   }, [appLogo]);
 
-  const [role, setRole] = useState<Role>(null);"""
+  const [darkMode, setDarkMode] = useState<boolean>(() => {"""
 
 content = content.replace(hook_target, hook_new)
 

@@ -23,6 +23,7 @@ import {
   SystemNotification, 
   Role 
 } from "./types";
+import { useAppLogo } from "./hooks/useAppLogo";
 import { 
   fetchPejuangList, 
   savePejuang, 
@@ -74,6 +75,22 @@ function useSwipeGesture(onSwipeLeft: () => void, onSwipeRight: () => void) {
 }
 
 export default function App() {
+  const appLogo = useAppLogo();
+  
+  useEffect(() => {
+    if (appLogo) {
+      const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+      if (link) {
+        link.href = appLogo;
+      } else {
+        const newLink = document.createElement('link');
+        newLink.rel = 'icon';
+        newLink.href = appLogo;
+        document.head.appendChild(newLink);
+      }
+    }
+  }, [appLogo]);
+
   const [darkMode, setDarkMode] = useState<boolean>(() => {
     return localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
   });

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Building2, Lock, User, LogIn } from "lucide-react";
+import { Building2, Lock, User, LogIn, Loader2 } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
 import { AdminUser, Role } from "../types";
 
 interface LoginProps {
@@ -11,35 +12,60 @@ export const Login: React.FC<LoginProps> = ({ onLogin, adminList }) => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Check for hardcoded Admin Utama
-    if (username === "Abdu Salam" && password === "Abdu2605") {
-      onLogin("admin");
-      return;
-    }
+    setError("");
+    setIsAuthenticating(true);
+
+    setTimeout(() => {
+        // Check for hardcoded Admin Utama
+        if (username === "Abdu Salam" && password === "Abdu2605") {
+          setIsAuthenticating(false);
+          setIsSuccess(true);
+          setTimeout(() => onLogin("admin"), 850);
+          return;
+        }
 
     // Check dynamic admins
     const matchedAdmin = adminList.find(a => a.username === username && a.password === password);
     if (matchedAdmin) {
-      onLogin("admin");
+      setIsAuthenticating(false);
+      setIsSuccess(true);
+      setTimeout(() => onLogin("admin"), 850);
       return;
     }
     
     // Default guest check for user/pejuang login? (Normally pejuang shouldn't need a password for now as per instructions, or maybe they just login as 'user' without password?)
     if (username === "user" && password === "user") {
-        onLogin("user");
+        setIsAuthenticating(false);
+        setIsSuccess(true);
+        setTimeout(() => onLogin("user"), 850);
         return;
     }
 
+    setIsAuthenticating(false);
     setError("Username atau password salah.");
+    }, 800); // Fake network delay for animation effect
   };
 
   return (
-    <div className="py-12 flex items-center justify-center px-4">
-      <div className="bg-white p-8 rounded-2xl shadow-lg border border-slate-200 w-full max-w-md">
+    <div className="py-12 flex items-center justify-center px-4 overflow-hidden perspective-1000">
+      <AnimatePresence>
+        {!isSuccess && (
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ 
+              opacity: [1, 1, 0], 
+              scale: [1, 0.96, 1.2], 
+              filter: ["blur(0px)", "blur(0px)", "blur(12px)"],
+              transition: { duration: 0.85, ease: [0.32, 0.72, 0, 1], times: [0, 0.2, 1] } 
+            }}
+            className="bg-white p-8 rounded-2xl shadow-lg border border-slate-200 w-full max-w-md relative z-10"
+          >
         <div className="flex justify-center mb-6">
           <div className="bg-emerald-600 p-4 rounded-xl shadow-inner border border-emerald-400/30">
             <Building2 className="w-10 h-10 text-white" />
@@ -85,16 +111,38 @@ export const Login: React.FC<LoginProps> = ({ onLogin, adminList }) => {
           </div>
           <button
             type="submit"
-            className="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-3 rounded-xl flex items-center justify-center space-x-2 transition-colors shadow-md"
+            disabled={isAuthenticating}
+            className="w-full bg-emerald-700 hover:bg-emerald-800 disabled:bg-emerald-500 text-white font-bold py-3 rounded-xl flex items-center justify-center space-x-2 transition-colors shadow-md relative overflow-hidden"
           >
-            <LogIn className="w-5 h-5" />
-            <span>Login</span>
+            {isAuthenticating ? (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex items-center space-x-2"
+              >
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span>Memverifikasi...</span>
+              </motion.div>
+            ) : (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex items-center space-x-2"
+              >
+                <LogIn className="w-5 h-5" />
+                <span>Login</span>
+              </motion.div>
+            )}
           </button>
         </form>
         <div className="mt-6 text-center text-xs text-slate-400">
           <p>Login sebagai Pejuang? (username: user, password: user)</p>
         </div>
-      </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      
+
     </div>
   );
 };

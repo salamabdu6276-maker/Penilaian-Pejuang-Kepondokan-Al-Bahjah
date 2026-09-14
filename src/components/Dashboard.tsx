@@ -43,6 +43,7 @@ import {
 } from "../types";
 import { getHijriDate, GREGORIAN_MONTHS_ID, getWeeksInMonth } from "../utils/hijri";
 import { exportToCSV, exportToExcel, exportElementToImage } from "../utils/export";
+import { HijriCalendarWidget } from './HijriCalendarWidget';
 import { MonthlyHeatmap } from "./MonthlyHeatmap";
 import { AnimatedDownloadButton } from './AnimatedDownloadButton';
 import { SholatAttendanceUploader } from "./SholatAttendanceUploader";
@@ -474,7 +475,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const unsubmittedList = pejuangList.filter(p => !submittedPejuangIds.has(p.id));
 
   // Export handlers
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
+    await import("../utils/export").then(m => m.prepareTranslations());
     const exportData = rankings.map((r, i) => ({
       Ranking: i + 1,
       Nama: r.pejuang.nama,
@@ -550,19 +552,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     <div id="dashboard-view" className="space-y-6 pb-12">
 
       {/* HIJRI WIDGET */}
-      <div className="bg-emerald-800 text-white rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <CalendarIcon className="w-6 h-6 text-emerald-200" />
-          <div>
-            <h3 className="font-bold text-sm sm:text-base">{hijriDate.formatted}</h3>
-            <p className="text-emerald-200 text-[10px] sm:text-xs font-medium">Penanggalan Hijriyah</p>
-          </div>
-        </div>
-        <div className="text-left sm:text-right">
-          <p className="text-xs text-emerald-200 font-medium">Tanggal Masehi</p>
-          <p className="font-bold text-sm">{new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
-        </div>
-      </div>
+      <HijriCalendarWidget />
       
       {/* Top Banner & Control Filters */}
       <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-xs border border-slate-200 dark:border-slate-700">

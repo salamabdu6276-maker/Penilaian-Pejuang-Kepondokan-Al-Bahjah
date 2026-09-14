@@ -8,7 +8,12 @@ import * as htmlToImage from "html-to-image";
 import { ChecklistFormSubmission, Pejuang } from "../types";
 
 // Export to CSV
-export function exportToCSV(data: Record<string, any>[], filename: string) {
+export async function prepareTranslations() {
+  // Trigger a dummy change or just wait a bit for Google Translate to finish DOM replacement
+  return new Promise(resolve => setTimeout(resolve, 800));
+}
+
+export async function exportToCSV(data: Record<string, any>[], filename: string) {
   if (!data || data.length === 0) return;
 
   const translatedData = data.map(row => {
@@ -251,6 +256,20 @@ export async function exportFormToPDF(
   dokumenUrls?: string[],
   sholatData?: any[]
 ) {
+  // Pass 1: Warm up dynamic translations
+  translateText(submission.pejuangNama);
+  translateText(submission.amanah);
+  translateText(submission.subDivisi);
+  translateText(submission.periodeStr);
+  translateText(submission.status.toUpperCase());
+  submission.tasks.forEach(task => {
+    translateText(task.waktu);
+    translateText(task.uraian);
+    translateText(task.kategori);
+    translateText(task.catatan || "");
+  });
+  await new Promise(res => setTimeout(res, 800));
+
   const doc = new jsPDF({
     orientation: "portrait",
     unit: "mm",

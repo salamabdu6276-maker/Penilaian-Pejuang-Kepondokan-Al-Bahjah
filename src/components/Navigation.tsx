@@ -74,7 +74,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                   <motion.div
                     animate={{ 
                       scale: isActive && isMobile ? 1.1 : 1,
-                      color: isActive ? 'var(--tw-colors-emerald-600)' : 'currentColor'
+                      color: isActive ? 'var(--tw-colors-emerald-600)' : 'var(--tw-colors-slate-500)'
                     }}
                     transition={{ type: "spring", stiffness: 400, damping: 30 }}
                   >

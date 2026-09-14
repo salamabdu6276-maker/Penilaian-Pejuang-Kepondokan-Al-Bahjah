@@ -625,7 +625,8 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     });
     setShowPreviewModal(true);
   };
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
+    await import("../utils/export").then(m => m.prepareTranslations());
     if (isExportDisabled) {
       setExportError("No data found for the selected period");
       return;

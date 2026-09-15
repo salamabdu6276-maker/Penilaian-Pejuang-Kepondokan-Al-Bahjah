@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { MessageCircle, Phone, 
+import { MessageCircle, Phone, BellRing, 
   Users, 
   Filter, 
   TrendingUp, 
@@ -119,6 +119,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [activeCalendarDate, setActiveCalendarDate] = useState<{ dayNum: number, dateStr: string } | null>(null);
   const [coachingPejuang, setCoachingPejuang] = useState<Pejuang | null>(null);
   const [historyModalPejuang, setHistoryModalPejuang] = useState<Pejuang | null>(null);
+  const [heatmapModalSubmission, setHeatmapModalSubmission] = useState<ChecklistFormSubmission | null>(null);
   const [coachingNote, setCoachingNote] = useState<string>("");
 
   const activePejuangList = React.useMemo(() => {
@@ -188,7 +189,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   // Heatmap Data (Pejuang vs Week for current month)
   const heatmapData = React.useMemo(() => {
-    return activePejuangList.map(p => {
+    const data = activePejuangList.map(p => {
       const pSubs = monthSubmissions.filter(s => s.pejuangId === p.id);
       return {
         pejuang: p,
@@ -199,7 +200,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
         w5: pSubs.find(s => s.pekan === 5)?.percentage,
       }
     });
-  }, [activePejuangList, monthSubmissions]);
+    
+    return data.sort((a, b) => {
+      if (heatmapSortBy === "name") {
+        return a.pejuang.nama.localeCompare(b.pejuang.nama);
+      } else {
+        const valA = a[`w${selectedWeek}` as keyof typeof a] as number | undefined || -1;
+        const valB = b[`w${selectedWeek}` as keyof typeof b] as number | undefined || -1;
+        return valB - valA;
+      }
+    });
+  }, [activePejuangList, monthSubmissions, heatmapSortBy, selectedWeek]);
 
   // Weekly Trend Chart Data
   const weeklyTrendData = React.useMemo(() => {
@@ -248,29 +259,59 @@ export const Dashboard: React.FC<DashboardProps> = ({
     }));
   }, [submissions, activePejuangList]);
 
-  // Performance Overview Data (Current Month by Week)
+  // Performance Overview Data
   const performanceOverviewData = React.useMemo(() => {
-    const data = [
-      { name: 'Pekan 1', Performa: 0, count: 0 },
-      { name: 'Pekan 2', Performa: 0, count: 0 },
-      { name: 'Pekan 3', Performa: 0, count: 0 },
-      { name: 'Pekan 4', Performa: 0, count: 0 },
-      { name: 'Pekan 5', Performa: 0, count: 0 }
-    ];
+    const data: { name: string; Performa: number; count: number }[] = [];
     
-    monthSubmissions.forEach(s => {
-      if (s.pekan >= 1 && s.pekan <= 5 && activePejuangList.some(p => p.id === s.pejuangId)) {
-        data[s.pekan - 1].Performa += s.percentage;
-        data[s.pekan - 1].count += 1;
+    if (overviewViewType === 'weekly') {
+      for (let i = 1; i <= 5; i++) {
+        data.push({ name: `Pekan ${i}`, Performa: 0, count: 0 });
       }
-    });
+      monthSubmissions.forEach(s => {
+        if (s.pekan >= 1 && s.pekan <= 5 && activePejuangList.some(p => p.id === s.pejuangId)) {
+          data[s.pekan - 1].Performa += s.percentage;
+          data[s.pekan - 1].count += 1;
+        }
+      });
+    } else if (overviewViewType === 'monthly') {
+      const months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Ags", "Sep", "Okt", "Nov", "Des"];
+      for (let i = 0; i < 12; i++) {
+        data.push({ name: months[i], Performa: 0, count: 0 });
+      }
+      submissions.forEach(s => {
+        if (s.tahun === selectedYear && s.bulan >= 1 && s.bulan <= 12 && activePejuangList.some(p => p.id === s.pejuangId)) {
+          data[s.bulan - 1].Performa += s.percentage;
+          data[s.bulan - 1].count += 1;
+        }
+      });
+    } else if (overviewViewType === 'quarterly') {
+      data.push({ name: 'Q1 (Jan-Mar)', Performa: 0, count: 0 });
+      data.push({ name: 'Q2 (Apr-Jun)', Performa: 0, count: 0 });
+      data.push({ name: 'Q3 (Jul-Sep)', Performa: 0, count: 0 });
+      data.push({ name: 'Q4 (Okt-Des)', Performa: 0, count: 0 });
+      
+      submissions.forEach(s => {
+        if (s.tahun === selectedYear && activePejuangList.some(p => p.id === s.pejuangId)) {
+          let qIdx = -1;
+          if (s.bulan >= 1 && s.bulan <= 3) qIdx = 0;
+          else if (s.bulan >= 4 && s.bulan <= 6) qIdx = 1;
+          else if (s.bulan >= 7 && s.bulan <= 9) qIdx = 2;
+          else if (s.bulan >= 10 && s.bulan <= 12) qIdx = 3;
+          
+          if (qIdx !== -1) {
+            data[qIdx].Performa += s.percentage;
+            data[qIdx].count += 1;
+          }
+        }
+      });
+    }
 
     return data.map(d => ({
       name: d.name,
       Performa: d.count > 0 ? Math.round(d.Performa / d.count) : 0,
       Count: d.count
     }));
-  }, [monthSubmissions, activePejuangList]);
+  }, [overviewViewType, monthSubmissions, submissions, activePejuangList, selectedYear]);
 
   // Ranking calculation
   const rankings = React.useMemo(() => {
@@ -555,32 +596,31 @@ export const Dashboard: React.FC<DashboardProps> = ({
   return (
     <div id="dashboard-view" className="space-y-6 pb-12">
 
-      {/* HIJRI WIDGET */}
-      <HijriCalendarWidget />
-      
-      {/* Top Banner & Control Filters */}
-      <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-xs border border-slate-200 dark:border-slate-700">
-        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-          <div>
-            <div className="flex flex-wrap items-center gap-2 mb-2">
-              <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-0.5 rounded-full border border-emerald-300">
-                Laporan & Executive Summary
-              </span>
-              <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                Yayasan Al-Bahjah Cirebon 1
-              </span>
-            </div>
-            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100 mt-1">
-              Dashboard Performa Tim Pejuang
-            </h2>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-              Pantau tren produktivitas, pencapaian target mingguan, dan evaluasi personal secara real-time.
-            </p>
-          </div>
-
-          
-          {/* Controls */}
-          <div className="flex flex-wrap items-end gap-3 lg:justify-end">
+            {/* BENTO GRID TOP SECTION */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-6">
+        
+        {/* TOP LEFT: Main Banner & Controls (8 Cols) */}
+        <div className="lg:col-span-8 bg-white dark:bg-slate-800 rounded-3xl p-6 lg:p-8 shadow-xs border border-slate-200 dark:border-slate-700 flex flex-col justify-between relative overflow-hidden">
+           <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+           
+           <div className="relative z-10 mb-6 flex-1">
+              <div className="flex flex-wrap items-center gap-2 mb-3">
+                <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1 rounded-full border border-emerald-300">
+                  Laporan & Executive Summary
+                </span>
+                <span className="text-xs text-slate-500 dark:text-slate-400 font-medium bg-slate-100 dark:bg-slate-700 px-3 py-1 rounded-full border border-slate-200 dark:border-slate-600">
+                  Yayasan Al-Bahjah Cirebon 1
+                </span>
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-slate-100 mt-2 tracking-tight">
+                Dashboard Performa Pejuang
+              </h2>
+              <p className="text-sm text-slate-600 dark:text-slate-400 mt-2 max-w-lg leading-relaxed">
+                Pantau tren produktivitas, pencapaian target mingguan, dan aktivitas terkini secara terintegrasi.
+              </p>
+           </div>
+           
+           <div className="relative z-10 flex flex-wrap items-end gap-3 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50">
             {/* Status Filter */}
             <div>
               <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Status</label>
@@ -588,7 +628,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value as any)}
-                  className="pl-3 pr-8 bg-slate-50 dark:bg-slate-700/50 border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200 text-sm rounded-lg py-1.5 font-semibold focus:ring-2 focus:ring-emerald-500 appearance-none outline-none"
+                  className="pl-3 pr-8 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-slate-200 text-sm rounded-xl py-2 font-semibold focus:ring-2 focus:ring-emerald-500 appearance-none outline-none shadow-sm"
                 >
                   <option value="semua">Semua Status</option>
                   <option value="aktif">Aktif</option>
@@ -601,11 +641,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <div>
               <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Filter Divisi Global</label>
               <div className="relative">
-                <Filter className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                <Filter className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <select
                   value={subDivisiFilter}
                   onChange={(e) => setSubDivisiFilter(e.target.value)}
-                  className="pl-8 bg-slate-50 dark:bg-slate-700/50 border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200 text-sm rounded-lg px-3 py-1.5 font-semibold focus:ring-2 focus:ring-emerald-500 min-w-[150px] max-w-[200px] truncate"
+                  className="pl-9 pr-4 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-slate-200 text-sm rounded-xl py-2 font-semibold focus:ring-2 focus:ring-emerald-500 min-w-[150px] max-w-[200px] truncate shadow-sm outline-none"
                 >
                   <option value="Semua Divisi">Semua Divisi</option>
                   {Array.from(new Set(pejuangList.map(p => p.subDivisi))).map(div => (
@@ -621,7 +661,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 id="select-month"
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                className="bg-slate-50 dark:bg-slate-700/50 border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200 text-sm rounded-lg px-3 py-1.5 font-semibold focus:ring-2 focus:ring-emerald-500"
+                className="bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-slate-200 text-sm rounded-xl px-4 py-2 font-semibold focus:ring-2 focus:ring-emerald-500 shadow-sm outline-none"
               >
                 {GREGORIAN_MONTHS_ID.map((m, idx) => (
                   <option key={idx} value={idx + 1}>{m}</option>
@@ -635,7 +675,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 id="select-year"
                 value={selectedYear}
                 onChange={(e) => setSelectedYear(Number(e.target.value))}
-                className="bg-slate-50 dark:bg-slate-700/50 border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200 text-sm rounded-lg px-3 py-1.5 font-semibold focus:ring-2 focus:ring-emerald-500"
+                className="bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-slate-200 text-sm rounded-xl px-4 py-2 font-semibold focus:ring-2 focus:ring-emerald-500 shadow-sm outline-none"
               >
                 <option value={2026}>2026</option>
                 <option value={2027}>2027</option>
@@ -643,169 +683,109 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
 
             {/* Quick Export Actions */}
-            <div className="flex flex-wrap items-center gap-2 pt-2 sm:pt-0">
+            <div className="flex items-center gap-2 pt-2 sm:pt-0 ml-auto">
               <button
                 id="btn-export-excel"
                 onClick={handleExportExcel}
-                className="flex items-center space-x-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg text-xs font-semibold shadow-xs transition-colors h-[34px]"
-                title="Ekspor Ke Excel XLSX"
+                className="flex items-center space-x-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors shadow-sm"
               >
                 <FileSpreadsheet className="w-4 h-4" />
                 <span className="hidden sm:inline">Excel</span>
               </button>
               <button
-                id="btn-export-csv"
-                onClick={handleExportCSV}
-                className="flex items-center space-x-1.5 bg-slate-800 hover:bg-slate-900 text-white px-3 py-2 rounded-lg text-xs font-semibold shadow-xs transition-colors h-[34px]"
-                title="Ekspor Ke CSV"
-              >
-                <Download className="w-4 h-4" />
-                <span className="hidden sm:inline">CSV</span>
-              </button>
-
-              <button
                 id="btn-export-pdf"
                 onClick={handleExportPDF}
-                className="flex items-center space-x-1.5 bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded-lg text-xs font-semibold shadow-xs transition-colors h-[34px]"
-                title="Ekspor Laporan Ke PDF"
+                className="flex items-center space-x-1.5 px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-colors shadow-sm"
               >
                 <FileText className="w-4 h-4" />
                 <span className="hidden sm:inline">PDF</span>
               </button>
-
             </div>
-          </div>
+           </div>
         </div>
-      </div>
 
-      
-      
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        <div className="lg:col-span-2">
-          {/* TOP 3 PERFORMERS (BULANAN) */}
-          <div className="h-full bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-5">
-        <div className="flex items-center space-x-2 mb-4">
-          <Award className="w-5 h-5 text-amber-500" />
-          <h3 className="font-bold text-slate-800 dark:text-white">Top Performers</h3>
+        {/* TOP RIGHT: Hijri Calendar (4 Cols) */}
+        <div className="lg:col-span-4 flex">
+           <div className="w-full h-full min-h-[250px] [&>div]:h-full [&>div]:flex [&>div]:flex-col [&>div]:justify-center">
+             <HijriCalendarWidget />
+           </div>
         </div>
-        
-        {top3Bulanan.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {top3Bulanan.map((item, idx) => (
-              <div key={item.pejuang.id} className="flex items-center p-3 rounded-xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-lg mr-3 shadow-sm ${idx === 0 ? 'bg-amber-100 text-amber-600 border-2 border-amber-300' : idx === 1 ? 'bg-slate-200 text-slate-500 border-2 border-slate-300' : 'bg-orange-100 text-orange-600 border-2 border-orange-300'}`}>
-                  {idx + 1}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-slate-800 dark:text-white truncate">{item.pejuang.nama}</p>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{item.pejuang.subDivisi}</p>
-                </div>
-                <div className="ml-2 font-black text-emerald-600 dark:text-emerald-400 text-lg">
-                  {item.score}%
-                </div>
+
+        {/* BOTTOM ROW OF BENTO */}
+        {/* Bottom Left: Metrics (8 Cols) */}
+        <div className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
+           {/* Card 1: Total Pejuang */}
+           <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-xs flex flex-col justify-center relative overflow-hidden group">
+              <div className="absolute -right-4 -bottom-4 w-28 h-28 bg-emerald-50 dark:bg-emerald-900/20 rounded-full group-hover:scale-150 transition-transform duration-500 ease-out z-0"></div>
+              <div className="relative z-10 flex items-center justify-between mb-4">
+                 <div className="p-3 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 rounded-2xl">
+                    <Users className="w-6 h-6" />
+                 </div>
+                 <p className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-1 rounded-lg border border-emerald-100 dark:border-emerald-800 truncate max-w-[100px]">{subDivisiFilter}</p>
               </div>
-            ))}
-          </div>
-        ) : (
-          <div className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-xl text-center border border-slate-100 dark:border-slate-700">
-            <p className="text-sm text-slate-500 dark:text-slate-400">Belum ada data performa untuk bulan ini. Pejuang dengan rata-rata checklist tertinggi akan tampil di sini.</p>
-          </div>
-        )}
-          </div>
+              <div className="relative z-10">
+                 <h3 className="text-4xl font-extrabold text-slate-900 dark:text-slate-100">{activePejuangList.filter(p => p.status === 'aktif').length}</h3>
+                 <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mt-1">Total Pejuang Aktif</p>
+              </div>
+           </div>
+
+           {/* Card 2: Checklist Submit */}
+           <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-xs flex flex-col justify-center relative overflow-hidden group">
+              <div className="absolute -right-4 -bottom-4 w-28 h-28 bg-indigo-50 dark:bg-indigo-900/20 rounded-full group-hover:scale-150 transition-transform duration-500 ease-out z-0"></div>
+              <div className="relative z-10 flex items-center justify-between mb-4">
+                 <div className="p-3 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-800 dark:text-indigo-300 rounded-2xl">
+                    <CheckCircle2 className="w-6 h-6" />
+                 </div>
+                 <p className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-1 rounded-lg border border-indigo-100 dark:border-indigo-800 truncate max-w-[100px]">Pekan {selectedWeek}</p>
+              </div>
+              <div className="relative z-10">
+                 <h3 className="text-4xl font-extrabold text-slate-900 dark:text-slate-100">
+                    {submissions.filter(s => s.pekan === selectedWeek && s.bulan === selectedMonth && s.tahun === selectedYear && activePejuangList.some(p => p.id === s.pejuangId)).length}
+                 </h3>
+                 <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mt-1">Submit Pekan Ini</p>
+              </div>
+           </div>
+
+           {/* Card 3: Avg Performance */}
+           <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-xs flex flex-col justify-center relative overflow-hidden group">
+              <div className="absolute -right-4 -bottom-4 w-28 h-28 bg-amber-50 dark:bg-amber-900/20 rounded-full group-hover:scale-150 transition-transform duration-500 ease-out z-0"></div>
+              <div className="relative z-10 flex items-center justify-between mb-4">
+                 <div className="p-3 bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300 rounded-2xl">
+                    <TrendingUp className="w-6 h-6" />
+                 </div>
+              </div>
+              <div className="relative z-10">
+                 <h3 className="text-4xl font-extrabold text-slate-900 dark:text-slate-100">{avgPerformance}%</h3>
+                 <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mt-1">Rata-rata Performa</p>
+              </div>
+           </div>
         </div>
-        <div className="lg:col-span-1">
-          <SholatAttendanceUploader pejuangList={pejuangList} onUploadSuccess={() => setSholatRefreshKey(prev => prev + 1)} />
+
+        {/* Bottom Right: Activity Timeline (4 Cols) */}
+        <div className="lg:col-span-4 bg-white dark:bg-slate-800 rounded-3xl p-6 shadow-xs border border-slate-200 dark:border-slate-700 flex flex-col max-h-[220px]">
+           <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100 dark:border-slate-700/50">
+             <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm flex items-center gap-2">
+               <BellRing className="w-4 h-4 text-emerald-600" />
+               Aktivitas Terbaru
+             </h3>
+             <span className="text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-full">{recentEvents.length} Logs</span>
+           </div>
+           <div className="overflow-y-auto pr-2 space-y-4 flex-1 custom-scrollbar">
+             {recentEvents.length === 0 ? (
+                <div className="text-center text-xs text-slate-500 py-4">Belum ada aktivitas.</div>
+             ) : recentEvents.map((evt, idx) => (
+                <div key={evt.id + idx} className="flex gap-3">
+                   <div className="mt-1.5 shrink-0 w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+                   <div>
+                     <p className="text-[11px] font-bold text-slate-800 dark:text-slate-200 leading-tight mb-0.5">{evt.title}</p>
+                     <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-snug">{evt.message}</p>
+                     <p className="text-[9px] text-slate-400 mt-1">{evt.date.toLocaleDateString('id-ID', {day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'})}</p>
+                   </div>
+                </div>
+             ))}
+           </div>
         </div>
       </div>
-
-      <div className="mb-6">
-        <SholatAttendanceRecap key={sholatRefreshKey} pejuangList={pejuangList} selectedMonth={selectedMonth} selectedYear={selectedYear} />
-      </div>
-
-      {/* QUICK STATS SUMMARY ROW */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-gradient-to-br from-emerald-600 to-emerald-800 p-5 rounded-2xl shadow-md text-white flex items-center space-x-4 border border-emerald-500">
-          <div className="p-3 bg-white dark:bg-slate-800/20 rounded-xl backdrop-blur-sm">
-            <Users className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <p className="text-[11px] font-bold text-emerald-100 uppercase tracking-wide">Total Pejuang Aktif</p>
-            <h3 className="text-2xl font-extrabold leading-tight">{pejuangList.filter(p => p.status === 'aktif').length}</h3>
-          </div>
-        </div>
-        <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 p-5 rounded-2xl shadow-md text-white flex items-center space-x-4 border border-indigo-500">
-          <div className="p-3 bg-white dark:bg-slate-800/20 rounded-xl backdrop-blur-sm">
-            <CheckCircle2 className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <p className="text-[11px] font-bold text-indigo-100 uppercase tracking-wide">Submit Pekan Ini</p>
-            <h3 className="text-2xl font-extrabold leading-tight">{submissions.filter(s => s.pekan === selectedWeek && s.bulan === selectedMonth && s.tahun === selectedYear).length}</h3>
-          </div>
-        </div>
-        <div className="bg-gradient-to-br from-amber-500 to-amber-700 p-5 rounded-2xl shadow-md text-white flex items-center space-x-4 border border-amber-400">
-          <div className="p-3 bg-white dark:bg-slate-800/20 rounded-xl backdrop-blur-sm">
-            <TrendingUp className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <p className="text-[11px] font-bold text-amber-100 uppercase tracking-wide">Performa Rata-rata</p>
-            <h3 className="text-2xl font-extrabold leading-tight">{avgPerformance}%</h3>
-          </div>
-        </div>
-      </div>
-
-{/* METRICS CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        
-        {/* Total Pejuang Aktif */}
-        <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex items-center space-x-4">
-          <div className="p-3.5 bg-emerald-100 text-emerald-800 rounded-xl flex-shrink-0">
-            <Users className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Total Pejuang Aktif</p>
-            <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100 leading-none mt-1">
-              {activePejuangList.filter(p => p.status === 'aktif').length} 
-              <span className="text-sm font-normal text-slate-500 dark:text-slate-400 ml-1">Orang</span>
-            </h3>
-            <p className="text-[10px] text-emerald-700 font-semibold mt-1 bg-emerald-50 inline-block px-1.5 py-0.5 rounded truncate max-w-[150px]">
-              {subDivisiFilter}
-            </p>
-          </div>
-        </div>
-
-        {/* Total Checklist (Minggu Ini) */}
-        <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex items-center space-x-4">
-          <div className="p-3.5 bg-indigo-100 text-indigo-800 rounded-xl flex-shrink-0">
-            <CheckCircle2 className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Checklist Pekan Ini</p>
-            <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100 leading-none mt-1">
-              {submissions.filter(s => s.pekan === selectedWeek && s.bulan === selectedMonth && s.tahun === selectedYear && activePejuangList.some(p => p.id === s.pejuangId)).length} 
-              <span className="text-sm font-normal text-slate-500 dark:text-slate-400 ml-1">Submit</span>
-            </h3>
-            <p className="text-[10px] text-indigo-700 font-semibold mt-1 bg-indigo-50 inline-block px-1.5 py-0.5 rounded truncate max-w-[150px]">
-              Sesuai filter divisi
-            </p>
-          </div>
-        </div>
-
-        {/* Average Performance */}
-        <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex items-center space-x-4">
-          <div className="p-3.5 bg-blue-100 text-blue-800 rounded-xl flex-shrink-0">
-            <TrendingUp className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Rata-rata Performa</p>
-            <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100 leading-none mt-1">{avgPerformance}%</h3>
-            <p className="text-[10px] text-blue-700 font-semibold mt-1 bg-blue-50 inline-block px-1.5 py-0.5 rounded truncate max-w-[150px]">
-              {subDivisiFilter}
-            </p>
-          </div>
-        </div>
-
-      </div>
-
 
       {/* Empty Pejuang Notice */}
       {pejuangList.length === 0 && (
@@ -1099,8 +1079,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       else if (val >= 50) bgClass = "bg-emerald-300 text-emerald-950";
                       else bgClass = "bg-emerald-200 text-emerald-950";
                     }
+                    
+                    const handleCellClick = () => {
+                      if (val !== undefined) {
+                        const sub = monthSubmissions.find(s => s.pejuangId === row.pejuang.id && s.pekan === idx + 1);
+                        if (sub) {
+                           setHeatmapModalSubmission(sub);
+                        }
+                      }
+                    };
+                    
                     return (
-                      <td key={idx} className={`p-2 text-[10px] font-bold text-center rounded-md ${bgClass} transition-colors`}>
+                      <td 
+                        key={idx} 
+                        onClick={handleCellClick}
+                        className={`p-2 text-[10px] font-bold text-center rounded-md ${bgClass} transition-colors ${val !== undefined ? 'cursor-pointer hover:opacity-80' : ''}`}
+                      >
                         {val !== undefined ? `${val}%` : '-'}
                       </td>
                     )
@@ -1618,6 +1612,111 @@ export const Dashboard: React.FC<DashboardProps> = ({
       )}
 
       
+      {/* MODAL HEATMAP ACTIVITIES BAR CHART */}
+      {heatmapModalSubmission && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-2xl w-full p-6 shadow-xl space-y-4 border border-slate-200 dark:border-slate-700 animate-in fade-in zoom-in duration-200">
+            <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-700/50 pb-3">
+              <div>
+                <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">Detail Kegiatan - {heatmapModalSubmission.pejuangNama}</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Pekan {heatmapModalSubmission.pekan} • Bulan {heatmapModalSubmission.bulan} • {heatmapModalSubmission.percentage}%</p>
+              </div>
+              <button 
+                onClick={() => setHeatmapModalSubmission(null)}
+                className="w-8 h-8 flex items-center justify-center bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 rounded-full text-slate-500 dark:text-slate-400 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                {(() => {
+                  // Aggregate tasks by Kategori
+                  const catMap: Record<string, { totalPossible: number, totalChecked: number }> = {};
+                  heatmapModalSubmission.tasks.forEach(t => {
+                     const cat = t.kategori || "A";
+                     if (!catMap[cat]) catMap[cat] = { totalPossible: 0, totalChecked: 0 };
+                     
+                     // count how many days were checked vs possible
+                     const daysCount = heatmapModalSubmission.dates.length;
+                     catMap[cat].totalPossible += daysCount;
+                     
+                     let checks = 0;
+                     heatmapModalSubmission.dates.forEach(d => {
+                        if (t.realisasiChecks[d]) checks++;
+                     });
+                     catMap[cat].totalChecked += checks;
+                  });
+                  
+                  const barData = Object.entries(catMap).map(([cat, data]) => ({
+                     name: `Kategori ${cat}`,
+                     Persentase: data.totalPossible > 0 ? Math.round((data.totalChecked / data.totalPossible) * 100) : 0,
+                     Checked: data.totalChecked,
+                     Possible: data.totalPossible
+                  })).sort((a,b) => a.name.localeCompare(b.name));
+                  
+                  return (
+                    <BarChart data={barData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis dataKey="name" tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} />
+                      <YAxis domain={[0, 100]} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} />
+                      <Tooltip 
+                        formatter={(value, name, props) => {
+                          if (name === "Persentase") return [`${value}% (${props.payload.Checked}/${props.payload.Possible})`, 'Ketercapaian'];
+                          return [value, name];
+                        }}
+                        contentStyle={{ backgroundColor: '#0f172a', borderRadius: '8px', color: '#fff', fontSize: '12px' }}
+                      />
+                      <Bar dataKey="Persentase" radius={[4, 4, 0, 0]}>
+                        {barData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.Persentase >= 80 ? '#10b981' : entry.Persentase >= 60 ? '#f59e0b' : '#ef4444'} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  )
+                })()}
+              </ResponsiveContainer>
+            </div>
+            
+            <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/50 max-h-40 overflow-y-auto custom-scrollbar">
+              <h4 className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-2">Uraian Kegiatan per Kategori</h4>
+              <div className="space-y-4">
+                {(() => {
+                   const tasksByCategory: Record<string, any[]> = {};
+                   heatmapModalSubmission.tasks.forEach(t => {
+                     const cat = t.kategori || "A";
+                     if (!tasksByCategory[cat]) tasksByCategory[cat] = [];
+                     tasksByCategory[cat].push(t);
+                   });
+                   return Object.entries(tasksByCategory).sort((a,b) => a[0].localeCompare(b[0])).map(([cat, tasks]) => (
+                     <div key={cat} className="space-y-1">
+                       <h5 className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-0.5 rounded inline-block mb-1">
+                         Kategori {cat}
+                       </h5>
+                       <ul className="list-disc list-inside text-xs text-slate-600 dark:text-slate-300 space-y-0.5 ml-1">
+                         {tasks.map((t, idx) => (
+                           <li key={idx} className="leading-tight"><span className="font-semibold mr-1">{t.waktu}</span> {t.uraian}</li>
+                         ))}
+                       </ul>
+                     </div>
+                   ));
+                })()}
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-3 border-t border-slate-100 dark:border-slate-700/50 mt-2">
+               <button 
+                  onClick={() => setHeatmapModalSubmission(null)}
+                  className="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+               >
+                  Tutup
+               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* MODAL HIStORICAL PERFORMANCE */}
       {historyModalPejuang && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
@@ -1784,32 +1883,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
       )}
 
-
-      {/* ACTIVITY TIMELINE */}
-      <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-xs space-y-4">
-        <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm flex items-center gap-2">
-          <Activity className="w-4 h-4 text-emerald-600" />
-          Activity Timeline
-        </h3>
-        <div className="space-y-4 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-300 before:to-transparent">
-          {recentEvents.length === 0 ? (
-            <div className="text-center text-xs text-slate-500 dark:text-slate-400 py-4">Belum ada aktivitas terekam.</div>
-          ) : recentEvents.map((evt, idx) => (
-            <div key={evt.id + idx} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-              <div className="flex items-center justify-center w-10 h-10 rounded-full border border-white bg-slate-100 dark:bg-slate-700 group-[.is-active]:bg-emerald-50 text-slate-500 dark:text-slate-400 group-[.is-active]:text-emerald-500 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2">
-                <Clock className="w-4 h-4" />
-              </div>
-              <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm text-left">
-                <div className="flex items-center justify-between mb-1">
-                  <h4 className="font-bold text-sm text-slate-900 dark:text-slate-100">{evt.title}</h4>
-                  <time className="text-[10px] text-slate-400">{evt.date.toLocaleDateString('id-ID', {day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'})}</time>
-                </div>
-                <p className="text-xs text-slate-600 dark:text-slate-400">{evt.message}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
 
       {/* DRILLDOWN MODAL */}
       {selectedDrilldownPejuang && (

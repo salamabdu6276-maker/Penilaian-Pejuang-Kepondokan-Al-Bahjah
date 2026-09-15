@@ -448,7 +448,12 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 dark:bg-slate-900 font-sans text-slate-900 dark:text-slate-100 flex flex-col transition-colors duration-300">
+    <motion.div 
+      initial={false}
+      animate={{ backgroundColor: darkMode ? '#0f172a' : '#f8fafc', color: darkMode ? '#f1f5f9' : '#0f172a' }}
+      transition={{ duration: 0.6, ease: "easeInOut" }}
+      className="min-h-screen font-sans flex flex-col transition-colors"
+    >
       
       {/* Top Header */}
       <div className="print:hidden">
@@ -585,6 +590,6 @@ export default function App() {
         </div>
       </footer>
 
-    </div>
+    </motion.div>
   );
 }

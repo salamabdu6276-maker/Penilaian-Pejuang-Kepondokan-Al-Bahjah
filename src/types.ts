@@ -14,6 +14,7 @@ export interface Pejuang {
   subDivisi: string;
   amanah: string;
   fotoUrl?: string;
+  whatsapp?: string;
   status: 'aktif' | 'nonaktif';
   quickNotes?: string;
   createdAt: string;

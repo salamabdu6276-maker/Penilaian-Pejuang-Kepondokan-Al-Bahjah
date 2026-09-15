@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { 
+import { MessageCircle, Phone, 
   Users, 
   Filter, 
   TrendingUp, 
@@ -48,6 +48,7 @@ import { MonthlyHeatmap } from "./MonthlyHeatmap";
 import { AnimatedDownloadButton } from './AnimatedDownloadButton';
 import { SholatAttendanceUploader } from "./SholatAttendanceUploader";
 import { SholatAttendanceRecap } from "./SholatAttendanceRecap";
+import { Overall4WeekTrend } from './Overall4WeekTrend';
 import { PejuangWeeklyTrend } from "./PejuangWeeklyTrend";
 import { Activity, Clock } from "lucide-react";
 import { jsPDF } from "jspdf";
@@ -107,6 +108,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     return events.sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 10);
   }, [submissions]);
   const [subDivisiFilter, setSubDivisiFilter] = useState<string>("Semua Divisi");
+  const [statusFilter, setStatusFilter] = useState<"semua" | "aktif" | "nonaktif">("semua");
   const [compareChartWeek, setCompareChartWeek] = useState<number | "all">("all");
   const [selectedYear, setSelectedYear] = useState<number>(2026);
   const [overviewViewType, setOverviewViewType] = useState<"weekly" | "monthly" | "quarterly">("weekly");
@@ -120,10 +122,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [coachingNote, setCoachingNote] = useState<string>("");
 
   const activePejuangList = React.useMemo(() => {
-    return subDivisiFilter === "Semua Divisi" 
-      ? pejuangList 
-      : pejuangList.filter(p => p.subDivisi === subDivisiFilter);
-  }, [pejuangList, subDivisiFilter]);
+    return pejuangList.filter(p => {
+      const matchDivisi = subDivisiFilter === "Semua Divisi" ? true : p.subDivisi === subDivisiFilter;
+      const matchStatus = statusFilter === "semua" ? true : p.status === statusFilter;
+      return matchDivisi && matchStatus;
+    });
+  }, [pejuangList, subDivisiFilter, statusFilter]);
 
   // Sub Division breakdown calculation
   const subDivisiStats = React.useMemo(() => {
@@ -577,6 +581,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
           
           {/* Controls */}
           <div className="flex flex-wrap items-end gap-3 lg:justify-end">
+            {/* Status Filter */}
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Status</label>
+              <div className="relative">
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value as any)}
+                  className="pl-3 pr-8 bg-slate-50 dark:bg-slate-700/50 border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200 text-sm rounded-lg py-1.5 font-semibold focus:ring-2 focus:ring-emerald-500 appearance-none outline-none"
+                >
+                  <option value="semua">Semua Status</option>
+                  <option value="aktif">Aktif</option>
+                  <option value="nonaktif">Non-aktif</option>
+                </select>
+              </div>
+            </div>
+            
             {/* Sub-Divisi Filter */}
             <div>
               <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Filter Divisi Global</label>
@@ -853,6 +873,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
         {/* Weekly Trend Line (6 Cols) */}
         <div className="lg:col-span-6">
           <PejuangWeeklyTrend pejuangList={pejuangList} submissions={submissions} />
+        </div>
+        
+        {/* Overall 4 Week Trend Line (6 Cols) */}
+        <div className="lg:col-span-6">
+          <Overall4WeekTrend submissions={submissions} />
         </div>
 
         {/* Top 3 Divisions 6-Month Trajectory (6 Cols) */}
@@ -1618,10 +1643,29 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   historyModalPejuang.nama.charAt(0)
                 )}
               </div>
-              <div>
+              <div className="flex-1">
                 <h4 className="font-bold text-slate-900 dark:text-slate-100 text-lg">{historyModalPejuang.nama}</h4>
                 <p className="text-slate-500 dark:text-slate-400 text-sm">{historyModalPejuang.subDivisi} • {historyModalPejuang.amanah}</p>
               </div>
+              
+              {historyModalPejuang.whatsapp && (
+                <button
+                  onClick={() => {
+                    const latestSub = submissions.filter(s => s.pejuangId === historyModalPejuang.id).sort((a,b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0];
+                    let templateMsg = `Assalamu'alaikum, Pejuang ${historyModalPejuang.nama}. `;
+                    if (latestSub) {
+                       templateMsg += `Ini adalah info terkait performa checklist Anda untuk pekan ${latestSub.pekan} bulan ${latestSub.bulan}, dengan capaian ${latestSub.percentage}%. `;
+                    } else {
+                       templateMsg += `Mohon segera mengisi checklist performa Anda.`;
+                    }
+                    window.open(`https://wa.me/${historyModalPejuang.whatsapp}?text=${encodeURIComponent(templateMsg)}`, '_blank');
+                  }}
+                  className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors shadow-sm"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  Hubungi via WA
+                </button>
+              )}
             </div>
 
             {(() => {

@@ -17,6 +17,21 @@ import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 
+if ('serviceWorker' in navigator && 'Notification' in window) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').then(reg => {
+      console.log('SW registered!', reg);
+      
+      // Request permission for notifications if not already granted
+      if (Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+    }).catch(err => console.log('SW registration failed: ', err));
+  });
+}
+
+
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />

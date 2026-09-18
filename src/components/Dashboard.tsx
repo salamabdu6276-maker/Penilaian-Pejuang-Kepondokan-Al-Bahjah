@@ -733,7 +733,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
         {/* TOP RIGHT: Hijri Calendar (4 Cols) */}
         <div className="lg:col-span-4 flex">
-           <div className="w-full h-full min-h-[250px] [&>div]:h-full [&>div]:flex [&>div]:flex-col [&>div]:justify-center">
+           <div className="w-full h-full">
              <HijriCalendarWidget />
            </div>
         </div>

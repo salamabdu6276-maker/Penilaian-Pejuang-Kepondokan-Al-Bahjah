@@ -198,6 +198,19 @@ export async function saveDocumentUpload(docUpload: any): Promise<void> {
   }
 }
 
+export async function deleteDocumentUpload(id: string): Promise<void> {
+  const current = getLocal<any[]>(LOCAL_STORAGE_KEYS.DOCUMENTS, []);
+  const updated = current.filter(d => d.id !== id);
+  setLocal(LOCAL_STORAGE_KEYS.DOCUMENTS, updated);
+
+  try {
+    const docRef = doc(db, "documentUploads", id);
+    await deleteDoc(docRef);
+  } catch (e) {
+    console.error("Firestore deleteDocumentUpload error:", e);
+  }
+}
+
 export async function fetchChecklistSubmissions(): Promise<ChecklistFormSubmission[]> {
   try {
     const colRef = collection(db, "checklistSubmissions");

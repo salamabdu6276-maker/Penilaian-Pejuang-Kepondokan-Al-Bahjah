@@ -44,7 +44,8 @@ import { SystemNotification } from '../types';
 import { exportFormToPDF, exportMonthlyPejuangToPDF, exportToExcel, exportToCSV, exportElementToImage, exportSummaryToPDF, exportElementToPDF } from "../utils/export";
 import { AnimatedDownloadButton } from './AnimatedDownloadButton';
 import { fetchDocumentUploads } from "../services/dbService";
-import { calculateBadges } from "../utils/badges";
+import { calculateBadges, getAllBadgesWithProgress } from "../utils/badges";
+import { PejuangBadgeShowcase } from "./PejuangBadgeShowcase";
 import ReactMarkdown from 'react-markdown';
 
 interface ReportsViewProps {
@@ -536,6 +537,35 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     setShowPreviewModal(true);
   };
 
+  const handleExportPejuangMonthlyPDFById = async (pejuangId: string) => {
+    const pejuang = pejuangList.find(p => p.id === pejuangId);
+    if (!pejuang) return;
+    const monthSubmissions = submissions.filter(s => s.pejuangId === pejuangId && s.bulan === selectedMonth && s.tahun === selectedYear);
+    if (monthSubmissions.length === 0) {
+      alert(`Belum ada data laporan checklist untuk ${pejuang.nama} pada periode ${GREGORIAN_MONTHS_ID[selectedMonth - 1]} ${selectedYear}.`);
+      return;
+    }
+    setIsGeneratingPDF(true);
+    setToastMsg(`Mempersiapkan Laporan Performa Bulanan ${pejuang.nama}...`);
+    setTimeout(() => setToastMsg(null), 3000);
+    try {
+      const periodStr = `${translateText(GREGORIAN_MONTHS_ID[selectedMonth - 1])} ${selectedYear}`;
+      const pejuangBadges = calculateBadges(monthSubmissions, pejuang.id, getWeeksInMonth(selectedYear, selectedMonth));
+      const pKeseluruhanIdx = rekapData.findIndex(d => d.pejuang.id === pejuang.id);
+      const peringkatKeseluruhan = pKeseluruhanIdx !== -1 ? `#${pKeseluruhanIdx + 1} dari ${rekapData.length}` : "-";
+      const divisiDataList = rekapData.filter(d => d.pejuang.subDivisi === pejuang.subDivisi);
+      const pDivisiIdx = divisiDataList.findIndex(d => d.pejuang.id === pejuang.id);
+      const peringkatDivisi = pDivisiIdx !== -1 ? `#${pDivisiIdx + 1} dari ${divisiDataList.length}` : "-";
+      
+      await exportMonthlyPejuangToPDF(pejuang, monthSubmissions, periodStr, undefined, undefined, pejuangBadges, peringkatKeseluruhan, peringkatDivisi, submissions);
+    } catch (err) {
+      console.error("Gagal cetak PDF bulanan pejuang", err);
+      alert("Terjadi kesalahan saat membuat file PDF.");
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
+
   const handleExportPDF = async () => {
     if (isExportDisabled) {
       setExportError("No data found for the selected period");
@@ -872,7 +902,21 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                 data-html2canvas-ignore="true" className={`flex items-center space-x-1.5 ${isExportDisabled ? 'bg-slate-400 cursor-not-allowed opacity-50' : 'bg-rose-600 hover:bg-rose-700'} text-white font-bold px-3 py-2 rounded-xl text-xs shadow-xs transition-colors`}
               >
                 <FileText className="w-4 h-4" />
-                <span>Format PDF</span>
+                <span>PDF Pekan Ini</span>
+              </button>
+              <button
+                disabled={isGeneratingPDF}
+                onClick={handleExportBulanPejuangPDF}
+                data-html2canvas-ignore="true"
+                className={`flex items-center space-x-1.5 ${isGeneratingPDF ? 'bg-slate-400 cursor-not-allowed opacity-50' : 'bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800'} text-white font-bold px-3.5 py-2 rounded-xl text-xs shadow-xs transition-colors cursor-pointer`}
+                title="Unduh Laporan Konsolidasi Performa Bulanan Pejuang Resmi (Format PDF)"
+              >
+                {isGeneratingPDF ? (
+                  <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                ) : (
+                  <FileText className="w-4 h-4" />
+                )}
+                <span>Laporan Performa Bulanan (PDF)</span>
               </button>
               <button
                 disabled={isExportDisabled}
@@ -1080,7 +1124,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                 data-html2canvas-ignore="true" className={`flex items-center space-x-1.5 ${isExportDisabled ? 'bg-slate-400 cursor-not-allowed opacity-50' : 'bg-rose-600 hover:bg-rose-700'} text-white font-bold px-3 py-2 rounded-xl text-xs shadow-xs transition-colors`}
               >
                 <FileText className="w-4 h-4" />
-                <span>Unduh Rekap Semua Pejuang (PDF)</span>
+                <span>{reportType === "bulan" ? "Unduh Laporan Performa Bulanan (PDF)" : "Unduh Rekap Semua Pejuang (PDF)"}</span>
               </button>
             </>
           )}
@@ -1244,7 +1288,9 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                   )}
                   <th className="border border-slate-300 dark:border-slate-600 p-2">Rata-Rata</th>
                   <th className="border border-slate-300 dark:border-slate-600 p-2">Evaluasi</th>
-                  
+                  {reportType === "bulan" && (
+                    <th className="border border-slate-300 dark:border-slate-600 p-2 text-center print:hidden">Laporan PDF</th>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -1271,7 +1317,20 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                     )}
                     <td className="border border-slate-200 dark:border-slate-700 p-2 font-bold text-emerald-700">{d.performa}%</td>
                     <td className="border border-slate-200 dark:border-slate-700 p-2 font-bold">{d.evaluasi}</td>
-                    
+                    {reportType === "bulan" && (
+                      <td className="border border-slate-200 dark:border-slate-700 p-2 text-center print:hidden">
+                        <button
+                          type="button"
+                          onClick={() => handleExportPejuangMonthlyPDFById(d.pejuang.id)}
+                          disabled={d.submissionsCount === 0 || isGeneratingPDF}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 disabled:bg-slate-200 dark:disabled:bg-slate-700 text-white disabled:text-slate-400 font-bold text-[11px] transition-colors shadow-2xs cursor-pointer disabled:cursor-not-allowed"
+                          title={`Unduh Laporan Performa Bulanan ${d.pejuang.nama} (PDF)`}
+                        >
+                          <FileText className="w-3.5 h-3.5" />
+                          <span>Unduh PDF</span>
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -1511,38 +1570,19 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
               </div>
             </div>
 
-            {(() => {
-              const badges = calculateBadges(submissions, activePejuang.id);
-              if (badges.length === 0) return null;
-              
-              const getIcon = (iconName: string) => {
-                switch(iconName) {
-                  case 'Award': return <Award className="w-3.5 h-3.5 mr-1" />;
-                  case 'Medal': return <Medal className="w-3.5 h-3.5 mr-1" />;
-                  case 'Star': return <Star className="w-3.5 h-3.5 mr-1" />;
-                  case 'Zap': return <Zap className="w-3.5 h-3.5 mr-1" />;
-                  default: return <Award className="w-3.5 h-3.5 mr-1" />;
-                }
-              };
-
-              return (
-                <div className="border-t border-slate-100 dark:border-slate-700/50 pt-3 space-y-2">
-                  <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 mb-2 text-center">Penghargaan (Badges)</h4>
-                  <div className="flex flex-wrap justify-center gap-2">
-                    {badges.map((badge, idx) => (
-                      <div 
-                        key={idx} 
-                        className={`flex items-center text-[10px] font-bold px-2.5 py-1 rounded-full border ${badge.color}`}
-                        title={badge.description}
-                      >
-                        {getIcon(badge.icon)}
-                        {badge.label}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })()}
+            <div className="border-t border-slate-100 dark:border-slate-700/50 pt-3 space-y-2">
+              <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 mb-1 text-center">Lencana Motivasi Digital</h4>
+              <PejuangBadgeShowcase
+                badges={getAllBadgesWithProgress(
+                  submissions,
+                  activePejuang.id,
+                  undefined,
+                  activePejuang.targetMingguan || 80
+                )}
+                pejuangNama={activePejuang.nama}
+                compact={true}
+              />
+            </div>
           </div>
 
 

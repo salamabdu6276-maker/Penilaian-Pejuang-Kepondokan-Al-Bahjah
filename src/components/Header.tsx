@@ -48,8 +48,16 @@ export const Header: React.FC<HeaderProps> = ({
           
           {/* Logo & Agency Branding */}
           <div className="flex items-center space-x-4">
-            <div className="bg-white p-2.5 rounded-2xl shadow-sm border border-emerald-600/30 flex items-center justify-center">
-              <img src={appLogo} alt="Logo" className="w-11 h-11 object-contain drop-shadow-sm" />
+            <div className="w-14 h-14 bg-white p-2 rounded-2xl shadow-sm border border-emerald-600/30 flex items-center justify-center shrink-0">
+              <img 
+                key={appLogo}
+                src={appLogo} 
+                alt="Logo Al-Bahjah" 
+                className="w-full h-full object-contain drop-shadow-xs" 
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).src = "/logo.png";
+                }}
+              />
             </div>
             <div>
               <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white leading-tight">

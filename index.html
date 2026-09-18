@@ -4,10 +4,42 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sistem Penilaian Pejuang Kepondokan</title>
-    <link rel="icon" href="/logo.png" />
+    <link id="app-favicon" rel="icon" href="/logo.png" />
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#059669" />
-    <link rel="apple-touch-icon" href="/icon.svg" />
+    <link id="app-apple-icon" rel="apple-touch-icon" href="/icon.svg" />
+    <script>
+      (function() {
+        try {
+          var savedLogo = localStorage.getItem("APP_LOGO");
+          if (savedLogo) {
+            var oldLinks = document.querySelectorAll("link[rel*='icon'], link[rel*='apple-touch-icon']");
+            oldLinks.forEach(function(l) { l.remove(); });
+            var isSvg = savedLogo.indexOf("data:image/svg") === 0 || savedLogo.indexOf(".svg") > -1;
+            var mime = isSvg ? "image/svg+xml" : "image/png";
+            
+            var link = document.createElement("link");
+            link.id = "app-favicon";
+            link.rel = "icon";
+            link.type = mime;
+            link.href = savedLogo;
+            document.head.appendChild(link);
+
+            var shortcut = document.createElement("link");
+            shortcut.rel = "shortcut icon";
+            shortcut.type = mime;
+            shortcut.href = savedLogo;
+            document.head.appendChild(shortcut);
+
+            var apple = document.createElement("link");
+            apple.id = "app-apple-icon";
+            apple.rel = "apple-touch-icon";
+            apple.href = savedLogo;
+            document.head.appendChild(apple);
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

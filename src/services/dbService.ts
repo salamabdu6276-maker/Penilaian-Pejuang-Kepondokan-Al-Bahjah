@@ -387,3 +387,19 @@ export async function saveSignatureLogo(base64Url: string): Promise<void> {
     console.error("Firestore saveSignatureLogo error:", e);
   }
 }
+
+export async function updatePejuangTarget(pejuangId: string, target: number): Promise<void> {
+  try {
+    const docRef = doc(db, "pejuang", pejuangId);
+    await setDoc(docRef, { targetMingguan: target }, { merge: true });
+  } catch (e) {
+    console.warn("Firestore updatePejuangTarget error:", e);
+  }
+  try {
+    const localList = getLocal<Pejuang[]>(LOCAL_STORAGE_KEYS.PEJUANG, []);
+    const updated = localList.map(p => p.id === pejuangId ? { ...p, targetMingguan: target } : p);
+    setLocal(LOCAL_STORAGE_KEYS.PEJUANG, updated);
+    localStorage.setItem(`pejuang_target_${pejuangId}`, target.toString());
+  } catch (e) {}
+}
+

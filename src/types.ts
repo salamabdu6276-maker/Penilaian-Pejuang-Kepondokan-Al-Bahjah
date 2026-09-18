@@ -18,6 +18,7 @@ export interface Pejuang {
   status: 'aktif' | 'nonaktif';
   quickNotes?: string;
   createdAt: string;
+  targetMingguan?: number; // Target performa mingguan individu (%)
 }
 
 export interface AdminUser {

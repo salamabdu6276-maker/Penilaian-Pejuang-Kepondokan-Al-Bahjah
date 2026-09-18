@@ -1,27 +1,23 @@
 import { useState, useEffect } from 'react';
 import { fetchAppLogo } from '../services/dbService';
+import { updateAppFavicon } from '../utils/favicon';
 
 export function useAppLogo() {
-  const [logo, setLogo] = useState<string>("/logo.png");
+  const [logo, setLogo] = useState<string>(() => {
+    return localStorage.getItem("APP_LOGO") || "/logo.png";
+  });
 
   useEffect(() => {
-    const updateFavicon = (url: string) => {
-      let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
-      if (!link) {
-        link = document.createElement('link');
-        link.rel = 'icon';
-        document.head.appendChild(link);
-      }
-      link.href = url;
-    };
-
     const loadLogo = async () => {
       const url = await fetchAppLogo();
       if (url) {
         setLogo(url);
-        updateFavicon(url);
+        try {
+          localStorage.setItem("APP_LOGO", url);
+        } catch (e) {}
+        updateAppFavicon(url);
       } else {
-        updateFavicon("/logo.png");
+        updateAppFavicon("/logo.png");
       }
     };
     

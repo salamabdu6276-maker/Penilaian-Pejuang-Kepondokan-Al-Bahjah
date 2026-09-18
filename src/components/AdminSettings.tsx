@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { AnimatedDeleteButton } from "./AnimatedDeleteButton";
+import { ConfirmDeleteModal } from "./ConfirmDeleteModal";
 import { 
   UserPlus, History, 
   ShieldCheck, 
@@ -22,6 +23,7 @@ import CryptoJS from "crypto-js";
 import { Pejuang, AdminUser, ChecklistFormSubmission } from "../types";
 import { SUB_DIVISI_LIST } from "../utils/defaultTasks";
 import { handleFileUpload } from "../utils/file";
+import { updateAppFavicon } from "../utils/favicon";
 import { fetchAppLogo, saveAppLogo, fetchSignatureLogo, saveSignatureLogo } from "../services/dbService";
 
 interface AdminSettingsProps {
@@ -59,7 +61,13 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
 
   React.useEffect(() => {
     fetchAppLogo().then(url => {
-      if (url) setAppLogo(url);
+      if (url) {
+        setAppLogo(url);
+        try {
+          localStorage.setItem("APP_LOGO", url);
+        } catch (e) {}
+        updateAppFavicon(url);
+      }
     });
     fetchSignatureLogo().then(url => {
       if (url) setAppSignature(url);
@@ -69,9 +77,13 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     handleFileUpload(e, async (url: string) => {
       setAppLogo(url);
+      try {
+        localStorage.setItem("APP_LOGO", url);
+      } catch (err) {}
+      updateAppFavicon(url);
       await saveAppLogo(url);
-      alert("Logo berhasil diperbarui! Muat ulang halaman jika logo belum berubah di semua tempat.");
       window.dispatchEvent(new Event("logo-updated"));
+      alert("Logo & favicon berhasil diperbarui secara instan di seluruh aplikasi!");
     });
   };
 
@@ -113,6 +125,32 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   const [isGeneratingAvatar, setIsGeneratingAvatar] = useState(false);
   const [adminStatus, setAdminStatus] = useState<"aktif" | "nonaktif">("aktif");
   const [editingAdminId, setEditingAdminId] = useState<string | null>(null);
+
+  // Modal konfirmasi hapus data (Alert Dialog) untuk mencegah human error
+  const [deleteModal, setDeleteModal] = useState<{
+    isOpen: boolean;
+    type: "pejuang" | "admin" | "checklist";
+    id: string;
+    name: string;
+    subDetails: string;
+  }>({
+    isOpen: false,
+    type: "pejuang",
+    id: "",
+    name: "",
+    subDetails: ""
+  });
+
+  const handleExecuteDelete = () => {
+    if (deleteModal.type === "pejuang") {
+      onDeletePejuang(deleteModal.id);
+    } else if (deleteModal.type === "admin") {
+      onDeleteAdmin(deleteModal.id);
+    } else if (deleteModal.type === "checklist") {
+      onDeleteChecklist(deleteModal.id);
+    }
+    setDeleteModal(prev => ({ ...prev, isOpen: false }));
+  };
 
   // Handle Submit Pejuang
   
@@ -582,11 +620,22 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                       >
                         <Edit3 className="w-4 h-4" />
                       </button>
-                      <AnimatedDeleteButton 
-                        label="Hapus" 
-                        onDelete={() => onDeletePejuang(p.id)} 
-                        className="" 
-                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDeleteModal({
+                            isOpen: true,
+                            type: "pejuang",
+                            id: p.id,
+                            name: p.nama,
+                            subDetails: `${p.subDivisi} • Amanah: ${p.amanah}`
+                          });
+                        }}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors cursor-pointer"
+                        title="Hapus Data Pejuang"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -773,12 +822,17 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                         <Edit3 className="w-4 h-4" />
                       </button>
                       <button
+                        type="button"
                         onClick={() => {
-                          if (confirm(`Hapus admin ${a.nama}?`)) {
-                            onDeleteAdmin(a.id);
-                          }
+                          setDeleteModal({
+                            isOpen: true,
+                            type: "admin",
+                            id: a.id,
+                            name: a.nama,
+                            subDetails: `Username: ${a.username} • ${a.subDivisi || "Semua Sub Divisi"}`
+                          });
                         }}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors cursor-pointer"
                         title="Hapus Admin"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -1237,6 +1291,16 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
           </div>
         </div>
       )}
+
+      {/* Modal Alert Dialog Konfirmasi Hapus Pejuang & Admin */}
+      <ConfirmDeleteModal
+        isOpen={deleteModal.isOpen}
+        type={deleteModal.type}
+        targetName={deleteModal.name}
+        targetSub={deleteModal.subDetails}
+        onConfirm={handleExecuteDelete}
+        onClose={() => setDeleteModal(prev => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 };

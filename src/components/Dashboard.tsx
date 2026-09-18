@@ -44,6 +44,8 @@ import {
 import { getHijriDate, GREGORIAN_MONTHS_ID, getWeeksInMonth } from "../utils/hijri";
 import { exportToCSV, exportToExcel, exportElementToImage } from "../utils/export";
 import { HijriCalendarWidget } from './HijriCalendarWidget';
+import { InteractiveDigitalClock } from './InteractiveDigitalClock';
+import { DashboardSkeleton } from './DashboardSkeleton';
 import { MonthlyHeatmap } from "./MonthlyHeatmap";
 import { AnimatedDownloadButton } from './AnimatedDownloadButton';
 import { SholatAttendanceUploader } from "./SholatAttendanceUploader";
@@ -53,12 +55,16 @@ import { PejuangWeeklyTrend } from "./PejuangWeeklyTrend";
 import { Activity, Clock } from "lucide-react";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-import { calculateBadges } from "../utils/badges";
+import { calculateBadges, getAllBadgesWithProgress } from "../utils/badges";
+import { PejuangWeeklyTargetWidget } from "./PejuangWeeklyTargetWidget";
+import { PejuangBadgeShowcase } from "./PejuangBadgeShowcase";
+import { fetchSholatAttendances } from "../services/dbService";
 
 interface DashboardProps {
   pejuangList: Pejuang[];
   submissions: ChecklistFormSubmission[];
   role: Role;
+  isLoading?: boolean;
   onNavigateToChecklist: () => void;
   onNavigateToSettings: () => void;
   onSendCoachingNotification: (pejuangId: string, message: string) => void;
@@ -68,6 +74,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   pejuangList,
   submissions,
   role,
+  isLoading,
   onNavigateToChecklist,
   onNavigateToSettings,
   onSendCoachingNotification
@@ -91,8 +98,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
   const [sholatRefreshKey, setSholatRefreshKey] = useState(0);
+  const [sholatAttendances, setSholatAttendances] = useState<any[]>([]);
   const [selectedDrilldownPejuang, setSelectedDrilldownPejuang] = useState<Pejuang | null>(null);
   const [heatmapSortBy, setHeatmapSortBy] = useState<"name" | "performance">("performance");
+
+  React.useEffect(() => {
+    fetchSholatAttendances().then(data => {
+      if (data) setSholatAttendances(data);
+    }).catch(console.error);
+  }, [sholatRefreshKey]);
 
   const recentEvents = useMemo(() => {
     const events = [];
@@ -593,6 +607,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   const hijriDate = React.useMemo(() => getHijriDate(new Date()), []);
 
+  if (isLoading) {
+    return <DashboardSkeleton />;
+  }
+
   return (
     <div id="dashboard-view" className="space-y-6 pb-12">
 
@@ -604,20 +622,29 @@ export const Dashboard: React.FC<DashboardProps> = ({
            <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
            
            <div className="relative z-10 mb-6 flex-1">
-              <div className="flex flex-wrap items-center gap-2 mb-3">
-                <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1 rounded-full border border-emerald-300">
-                  Laporan & Executive Summary
-                </span>
-                <span className="text-xs text-slate-500 dark:text-slate-400 font-medium bg-slate-100 dark:bg-slate-700 px-3 py-1 rounded-full border border-slate-200 dark:border-slate-600">
-                  Yayasan Al-Bahjah Cirebon 1
-                </span>
+              <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                <div className="flex-1">
+                  <div className="flex flex-wrap items-center gap-2 mb-3">
+                    <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1 rounded-full border border-emerald-300">
+                      Laporan & Executive Summary
+                    </span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400 font-medium bg-slate-100 dark:bg-slate-700 px-3 py-1 rounded-full border border-slate-200 dark:border-slate-600">
+                      Yayasan Al-Bahjah Cirebon 1
+                    </span>
+                  </div>
+                  <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-slate-100 mt-2 tracking-tight">
+                    Dashboard Performa Pejuang
+                  </h2>
+                  <p className="text-sm text-slate-600 dark:text-slate-400 mt-2 max-w-lg leading-relaxed">
+                    Pantau tren produktivitas, pencapaian target mingguan, dan aktivitas terkini secara terintegrasi.
+                  </p>
+                </div>
+
+                {/* Interactive Real-Time Digital Clock */}
+                <div className="w-full md:w-auto md:min-w-[280px] shrink-0">
+                  <InteractiveDigitalClock />
+                </div>
               </div>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-slate-100 mt-2 tracking-tight">
-                Dashboard Performa Pejuang
-              </h2>
-              <p className="text-sm text-slate-600 dark:text-slate-400 mt-2 max-w-lg leading-relaxed">
-                Pantau tren produktivitas, pencapaian target mingguan, dan aktivitas terkini secara terintegrasi.
-              </p>
            </div>
            
            <div className="relative z-10 flex flex-wrap items-end gap-3 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50">
@@ -807,6 +834,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
               Tambah Data Pejuang Sekarang
             </button>
           )}
+        </div>
+      )}
+
+      {/* PEJUANG WEEKLY TARGET & MOTIVATION BADGES WIDGET */}
+      {pejuangList.length > 0 && (
+        <div className="mb-6">
+          <PejuangWeeklyTargetWidget
+            pejuangList={pejuangList}
+            submissions={submissions}
+            selectedMonth={selectedMonth}
+            selectedYear={selectedYear}
+            selectedWeek={selectedWeek}
+            role={role}
+            onNavigateToChecklist={onNavigateToChecklist}
+            attendances={sholatAttendances}
+          />
         </div>
       )}
 
@@ -1909,35 +1952,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <div className="flex-1">
                 <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">{selectedDrilldownPejuang.nama}</h2>
                 <p className="text-xs text-slate-600 dark:text-slate-400 mb-2">{selectedDrilldownPejuang.amanah} &bull; {selectedDrilldownPejuang.subDivisi}</p>
-                {(() => {
-                  const badges = calculateBadges(submissions, selectedDrilldownPejuang.id); // Historical, no strict expected count
-                  if (badges.length === 0) return null;
-                  
-                  const getIcon = (iconName: string) => {
-                    switch(iconName) {
-                      case 'Award': return <Award className="w-3.5 h-3.5 mr-1" />;
-                      case 'Medal': return <Medal className="w-3.5 h-3.5 mr-1" />;
-                      case 'Star': return <Star className="w-3.5 h-3.5 mr-1" />;
-                      case 'Zap': return <Zap className="w-3.5 h-3.5 mr-1" />;
-                      default: return <Award className="w-3.5 h-3.5 mr-1" />;
-                    }
-                  };
-
-                  return (
-                    <div className="flex flex-wrap gap-1.5 mt-1">
-                      {badges.map((badge, idx) => (
-                        <div 
-                          key={idx} 
-                          className={`flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full border ${badge.color}`}
-                          title={badge.description}
-                        >
-                          {getIcon(badge.icon)}
-                          {badge.label}
-                        </div>
-                      ))}
-                    </div>
-                  );
-                })()}
+                <div className="mt-1">
+                  <PejuangBadgeShowcase
+                    badges={getAllBadgesWithProgress(
+                      submissions, 
+                      selectedDrilldownPejuang.id, 
+                      sholatAttendances, 
+                      selectedDrilldownPejuang.targetMingguan || 80
+                    )}
+                    pejuangNama={selectedDrilldownPejuang.nama}
+                    compact={true}
+                  />
+                </div>
               </div>
             </div>
             

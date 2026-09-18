@@ -11,7 +11,9 @@ import {
   FileCheck, 
   Clock, 
   Tag, 
-  AlertCircle, Copy 
+  AlertCircle, 
+  Copy,
+  HelpCircle
 } from "lucide-react";
 import { 
   Pejuang, 
@@ -21,6 +23,7 @@ import {
 } from "../types";
 import { DEFAULT_CHECKLIST_TASKS } from "../utils/defaultTasks";
 import { getWeekPeriodString, GREGORIAN_MONTHS_ID } from "../utils/hijri";
+import { ChecklistWalkthrough } from "./ChecklistWalkthrough";
 
 interface ChecklistFormInputProps {
   pejuangList: Pejuang[];
@@ -37,6 +40,11 @@ export const ChecklistFormInput: React.FC<ChecklistFormInputProps> = ({
   const [selectedMonth, setSelectedMonth] = useState<number>(6); // Juni
   const [selectedYear, setSelectedYear] = useState<number>(2026);
   const [selectedWeek, setSelectedWeek] = useState<number>(1);
+
+  // Walkthrough state for new users
+  const [showWalkthrough, setShowWalkthrough] = useState<boolean>(() => {
+    return localStorage.getItem('hasSeenChecklistWalkthrough') !== 'true';
+  });
 
   // Form tasks state
   const [tasks, setTasks] = useState<TaskRecord[]>([]);
@@ -446,21 +454,34 @@ export const ChecklistFormInput: React.FC<ChecklistFormInputProps> = ({
             </p>
           </div>
 
-          <button
-            id="btn-duplicate-checklist"
-            onClick={() => setShowDuplicateModal(true)}
-            className="flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-md transition-all border border-blue-500"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Duplikat Format Checklist</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              id="btn-open-walkthrough"
+              type="button"
+              onClick={() => setShowWalkthrough(true)}
+              className="flex items-center space-x-1.5 px-3.5 py-2.5 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700/60 rounded-xl text-xs font-bold transition-all shadow-xs"
+              title="Buka panduan & walkthrough interaktif form checklist"
+            >
+              <HelpCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <span>Panduan Pengisian</span>
+            </button>
+
+            <button
+              id="btn-duplicate-checklist"
+              onClick={() => setShowDuplicateModal(true)}
+              className="flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl font-bold text-xs shadow-md transition-all border border-blue-500"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Duplikat Format Checklist</span>
+            </button>
+          </div>
         </div>
 
         {/* Inputs Selection: Pejuang, Month, Year, Pekan */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           
           {/* Pejuang Dropdown */}
-          <div>
+          <div id="walkthrough-pejuang-select">
             <label className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1 flex items-center gap-1">
               <User className="w-3.5 h-3.5 text-emerald-600" />
               Nama Pejuang
@@ -491,48 +512,50 @@ export const ChecklistFormInput: React.FC<ChecklistFormInputProps> = ({
             </div>
           </div>
 
-          {/* Month & Year */}
-          <div>
-            <label className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1 flex items-center gap-1">
-              <Calendar className="w-3.5 h-3.5 text-emerald-600" />
-              Bulan & Tahun
-            </label>
-            <div className="grid grid-cols-2 gap-1">
+          {/* Month & Year and Pekan Selection */}
+          <div id="walkthrough-periode-select" className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1 flex items-center gap-1">
+                <Calendar className="w-3.5 h-3.5 text-emerald-600" />
+                Bulan & Tahun
+              </label>
+              <div className="grid grid-cols-2 gap-1">
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                  className="bg-slate-50 dark:bg-slate-700/50 border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200 text-xs font-bold rounded-xl p-2.5"
+                >
+                  {GREGORIAN_MONTHS_ID.map((m, idx) => (
+                    <option key={idx} value={idx + 1}>{m}</option>
+                  ))}
+                </select>
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(Number(e.target.value))}
+                  className="bg-slate-50 dark:bg-slate-700/50 border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200 text-xs font-bold rounded-xl p-2.5"
+                >
+                  <option value={2026}>2026</option>
+                  <option value={2027}>2027</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Pekan Selection */}
+            <div>
+              <label className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1">Periode Pekan</label>
               <select
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                className="bg-slate-50 dark:bg-slate-700/50 border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200 text-xs font-bold rounded-xl p-2.5"
+                id="select-pekan"
+                value={selectedWeek}
+                onChange={(e) => setSelectedWeek(Number(e.target.value))}
+                className="w-full bg-slate-50 dark:bg-slate-700/50 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 font-bold text-xs rounded-xl p-2.5 focus:ring-2 focus:ring-emerald-500"
               >
-                {GREGORIAN_MONTHS_ID.map((m, idx) => (
-                  <option key={idx} value={idx + 1}>{m}</option>
-                ))}
-              </select>
-              <select
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(Number(e.target.value))}
-                className="bg-slate-50 dark:bg-slate-700/50 border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200 text-xs font-bold rounded-xl p-2.5"
-              >
-                <option value={2026}>2026</option>
-                <option value={2027}>2027</option>
+                <option value={1}>Pekan 1 (Tanggal 01 - 07)</option>
+                <option value={2}>Pekan 2 (Tanggal 08 - 14)</option>
+                <option value={3}>Pekan 3 (Tanggal 15 - 21)</option>
+                <option value={4}>Pekan 4 (Tanggal 22 - 28)</option>
+                <option value={5}>Pekan 5 (Tanggal 29 - 31)</option>
               </select>
             </div>
-          </div>
-
-          {/* Pekan Selection */}
-          <div>
-            <label className="block text-xs font-bold uppercase text-slate-600 dark:text-slate-400 mb-1">Periode Pekan</label>
-            <select
-              id="select-pekan"
-              value={selectedWeek}
-              onChange={(e) => setSelectedWeek(Number(e.target.value))}
-              className="w-full bg-slate-50 dark:bg-slate-700/50 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 font-bold text-xs rounded-xl p-2.5 focus:ring-2 focus:ring-emerald-500"
-            >
-              <option value={1}>Pekan 1 (Tanggal 01 - 07)</option>
-              <option value={2}>Pekan 2 (Tanggal 08 - 14)</option>
-              <option value={3}>Pekan 3 (Tanggal 15 - 21)</option>
-              <option value={4}>Pekan 4 (Tanggal 22 - 28)</option>
-              <option value={5}>Pekan 5 (Tanggal 29 - 31)</option>
-            </select>
           </div>
 
         </div>
@@ -586,7 +609,7 @@ export const ChecklistFormInput: React.FC<ChecklistFormInputProps> = ({
       </div>
 
       {/* CHECKLIST TABLE PRINTABLE FORMAT */}
-      <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs overflow-hidden">
+      <div id="walkthrough-table" className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs overflow-hidden">
         <div className="p-4 bg-slate-800 text-white flex items-center justify-between">
           <h3 className="font-bold text-sm flex items-center gap-2">
             <FileCheck className="w-4 h-4 text-emerald-400" />
@@ -736,7 +759,7 @@ export const ChecklistFormInput: React.FC<ChecklistFormInputProps> = ({
       </div>
 
       {/* ADD CUSTOM TASK FORM */}
-      <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 shadow-xs space-y-3">
+      <div id="walkthrough-add-task" className="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 shadow-xs space-y-3">
         <h4 className="font-bold text-slate-900 dark:text-slate-100 text-sm flex items-center gap-2">
           <Plus className="w-4 h-4 text-emerald-600" />
           Tambah Kegiatan Khusus Baru
@@ -794,6 +817,7 @@ export const ChecklistFormInput: React.FC<ChecklistFormInputProps> = ({
       {/* Save Button */}
       <div className="flex justify-end pt-4 pb-8">
         <button
+          id="walkthrough-submit-btn"
           type="button"
           onClick={handleSaveForm}
           className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg flex items-center gap-2 transition-transform hover:scale-105 active:scale-95"
@@ -864,6 +888,12 @@ export const ChecklistFormInput: React.FC<ChecklistFormInputProps> = ({
           </div>
         </div>
       )}
+
+      {/* Interactive Walkthrough / Onboarding Guide */}
+      <ChecklistWalkthrough
+        isOpen={showWalkthrough}
+        onClose={() => setShowWalkthrough(false)}
+      />
 
     </div>
   );

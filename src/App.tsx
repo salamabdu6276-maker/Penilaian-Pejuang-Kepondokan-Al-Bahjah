@@ -24,6 +24,7 @@ import {
   Role 
 } from "./types";
 import { useAppLogo } from "./hooks/useAppLogo";
+import { updateAppFavicon } from "./utils/favicon";
 import { 
   fetchPejuangList, 
   savePejuang, 
@@ -79,15 +80,7 @@ export default function App() {
   
   useEffect(() => {
     if (appLogo) {
-      const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
-      if (link) {
-        link.href = appLogo;
-      } else {
-        const newLink = document.createElement('link');
-        newLink.rel = 'icon';
-        newLink.href = appLogo;
-        document.head.appendChild(newLink);
-      }
+      updateAppFavicon(appLogo);
     }
   }, [appLogo]);
 
@@ -141,6 +134,7 @@ export default function App() {
   const [submissions, setSubmissions] = useState<ChecklistFormSubmission[]>([]);
   const [notifications, setNotifications] = useState<SystemNotification[]>([]);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [isDataLoading, setIsDataLoading] = useState(true);
 
 
   // Automatic weekly reminder (Monday 08:00 WIB)
@@ -241,15 +235,24 @@ export default function App() {
   // Load initial data from Firebase/LocalStorage
   useEffect(() => {
     async function loadData() {
-      const p = await fetchPejuangList();
-      const a = await fetchAdminList();
-      const c = await fetchChecklistSubmissions();
-      const n = await fetchNotifications();
+      setIsDataLoading(true);
+      try {
+        const [p, a, c, n] = await Promise.all([
+          fetchPejuangList(),
+          fetchAdminList(),
+          fetchChecklistSubmissions(),
+          fetchNotifications()
+        ]);
 
-      setPejuangList(p);
-      setAdminList(a);
-      setSubmissions(c);
-      setNotifications(n);
+        setPejuangList(p);
+        setAdminList(a);
+        setSubmissions(c);
+        setNotifications(n);
+      } catch (err) {
+        console.error("Gagal memuat data awal:", err);
+      } finally {
+        setIsDataLoading(false);
+      }
     }
 
     loadData();
@@ -505,6 +508,7 @@ export default function App() {
                 pejuangList={pejuangList}
                 submissions={submissions}
                 role={role}
+                isLoading={isDataLoading}
                 onNavigateToChecklist={() => setActiveTab("checklist")}
                 onNavigateToSettings={() => setActiveTab("settings")}
                 onSendCoachingNotification={handleSendCoachingNotification}

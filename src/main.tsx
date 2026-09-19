@@ -21,6 +21,7 @@ if ('serviceWorker' in navigator && 'Notification' in window) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').then(reg => {
       console.log('SW registered!', reg);
+      reg.update();
       
       // Request permission for notifications if not already granted
       if (Notification.permission === 'default') {

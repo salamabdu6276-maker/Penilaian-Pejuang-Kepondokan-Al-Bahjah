@@ -45,14 +45,6 @@ export const Login: React.FC<LoginProps> = ({ onLogin, adminList }) => {
       setTimeout(() => onLogin("admin"), 850);
       return;
     }
-    
-    // Default guest check for user/pejuang login? (Normally pejuang shouldn't need a password for now as per instructions, or maybe they just login as 'user' without password?)
-    if (username === "user" && password === "user") {
-        setIsAuthenticating(false);
-        setIsSuccess(true);
-        setTimeout(() => onLogin("user"), 850);
-        return;
-    }
 
     setIsAuthenticating(false);
     setError("Username atau password salah.");
@@ -184,14 +176,11 @@ export const Login: React.FC<LoginProps> = ({ onLogin, adminList }) => {
             </form>
 
             <div className="mt-6 text-center text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-700/40 border border-slate-200/80 dark:border-slate-700/60 rounded-xl p-3.5 space-y-1">
-              <p>
-                Login sebagai Pejuang? (<span className="text-slate-600 dark:text-slate-300">username:</span>{" "}
-                <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400">user</span>,{" "}
-                <span className="text-slate-600 dark:text-slate-300">password:</span>{" "}
-                <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400">user</span>)
+              <p className="font-medium text-slate-600 dark:text-slate-300">
+                Akses Khusus Pengurus & Admin
               </p>
               <p className="text-[11px] text-slate-400 dark:text-slate-400">
-                Atau login pengurus/admin dengan kredensial yang terdaftar di Manajemen Data
+                Silakan login dengan kredensial akun yang telah terdaftar di Manajemen Data.
               </p>
             </div>
           </motion.div>
